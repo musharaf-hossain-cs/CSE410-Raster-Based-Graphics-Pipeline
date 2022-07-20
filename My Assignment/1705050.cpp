@@ -46,15 +46,36 @@ struct Matrix{
         return;
     }
 
+    void Print(){
+        for(int i=0;i<4;i++){
+            for(int j=0;j<4;j++){
+                cout << fixed << setprecision(7) << data[i][j] << ' ';
+            }
+            cout<<endl;
+        }
+        cout<<endl;
+        return;
+    }
+
     void Print(ofstream &file){
         for(int i=0;i<3;i++){
             for(int j=0;j<3;j++){
-                file << fixed << setprecision(7) << data[i][j] << ' ';
+                file << fixed << setprecision(7) << data[j][i]/data[3][i] << ' ';
             }
             file<<endl;
         }
         file<<endl;
         return;
+    }
+
+    Matrix Transpose(){
+        Matrix temp;
+        for(int i=0; i<4;i++){
+            for(int j=0;j<4;j++){
+                temp.data[i][j] = data[j][i];
+            }
+        }
+        return temp;
     }
 };
 
@@ -68,6 +89,7 @@ Matrix Multiply(Matrix a, Matrix b){
                 entry += a.data[i][k] * b.data[k][j];
             }
             temp.data[i][j] = entry;
+            if(abs(entry) < 1e-8) temp.data[i][j] = 0;
         }
     }
     return temp;
@@ -115,6 +137,97 @@ void SceneInput(ifstream &scene){
 //    dbg(aspectRatio);
 //    dbg(near);
 //    dbg(far);
+}
+
+void Translate(double tx, double ty, double tz){
+    Matrix trans;
+    trans.MakeIdentityMatrix();
+    trans.data[0][3] = tx;
+    trans.data[1][3] = ty;
+    trans.data[2][3] = tz;
+//    cout<<"before"<<endl;
+//    transformation.Print();
+    transformation = Multiply(transformation, trans);
+
+//    cout<<"after"<<endl;
+//    transformation.Print();
+}
+
+void Scale(double sx, double sy, double sz){
+    Matrix scale;
+
+    scale.data[0][0] = sx;
+    scale.data[1][1] = sy;
+    scale.data[2][2] = sz;
+    scale.data[3][3] = 1;
+
+    transformation = Multiply(transformation, scale);
+}
+
+void Rotate(double angle, Point a){
+    /// Ref: https://www.youtube.com/watch?v=OhgiPknf2mc
+    a.Normalize();
+
+    Matrix rot;
+    double sinA = sin(angle * PI / 180);
+    double cosA = cos(angle * PI / 180);
+
+    //move rotation axis to center
+    Matrix translate2Center;
+    translate2Center.MakeIdentityMatrix();
+    translate2Center.data[0][3] = -a.x;
+    translate2Center.data[1][3] = -a.y;
+    translate2Center.data[2][3] = -a.z;
+
+    // Rx, Ry to make the axis align with z-axis
+    Matrix Rx;
+    double d = sqrt(a.y*a.y + a.z*a.z);
+    Rx.data[0][0] = Rx.data[3][3] = 1;
+    Rx.data[1][1] = a.z / d;
+    Rx.data[1][2] = -a.y / d;
+    Rx.data[2][1] = a.y / d;
+    Rx.data[2][2] = a.z / d;
+
+    Matrix Ry;
+    Ry.data[1][1] = Ry.data[3][3] = 1;
+    Ry.data[0][0] = d;
+    Ry.data[0][2] = -a.x;
+    Ry.data[2][0] = a.x;
+    Ry.data[2][2] = d;
+
+    // Now axis is along with z axis
+    // rotate along z-axis
+    Matrix Rz;
+    Rz.data[0][0] = cosA;
+    Rz.data[0][1] = -sinA;
+    Rz.data[1][0] = sinA;
+    Rz.data[1][1] = cosA;
+    Rz.data[2][2] = Rz.data[3][3] = 1;
+
+    // rotate axis its original direction by Rx-inverse and Ry-inverse
+    Matrix AntiRy = Ry.Transpose();
+    Matrix AntiRx = Rx.Transpose();
+
+    // Now move axis its original position
+    Matrix translate2Original;
+    translate2Original.MakeIdentityMatrix();
+    translate2Original.data[0][3] = a.x;
+    translate2Original.data[1][3] = a.y;
+    translate2Original.data[2][3] = a.z;
+
+    // Now multiply all of them to find rotation matrix
+    Matrix rotation;
+    rotation.MakeIdentityMatrix();
+
+    rotation = Multiply(rotation, translate2Center);
+    rotation = Multiply(rotation, Rx);
+    rotation = Multiply(rotation, Ry);
+    rotation = Multiply(rotation, Rz);
+    rotation = Multiply(rotation, AntiRy);
+    rotation = Multiply(rotation, AntiRx);
+    rotation = Multiply(rotation, translate2Original);
+
+    transformation = Multiply(transformation, rotation);
 }
 
 void Initiate(){
@@ -194,9 +307,9 @@ int main(){
         scene >> command;
         if(command == "triangle"){
             Matrix triangle;
-            scene >> triangle.data[0][0] >> triangle.data[0][1] >> triangle.data[0][2];
-            scene >> triangle.data[1][0] >> triangle.data[1][1] >> triangle.data[1][2];
-            scene >> triangle.data[2][0] >> triangle.data[2][1] >> triangle.data[2][2];
+            scene >> triangle.data[0][0] >> triangle.data[1][0] >> triangle.data[2][0];
+            scene >> triangle.data[0][1] >> triangle.data[1][1] >> triangle.data[2][1];
+            scene >> triangle.data[0][2] >> triangle.data[1][2] >> triangle.data[2][2];
 
             triangle.data[0][3] = triangle.data[1][3] = triangle.data[2][3] = 1.0;
             triangle.data[3][0] = triangle.data[3][1] = triangle.data[3][2] = 1.0;
@@ -212,6 +325,22 @@ int main(){
             // stage 2
             triangle = Multiply(P, triangle);
             triangle.Print(stage3);
+        }
+        else if(command == "translate"){
+            double tx, ty, tz;
+            scene >> tx >> ty >> tz;
+            Translate(tx, ty, tz);
+        }
+        else if(command == "scale"){
+            double sx, sy, sz;
+            scene >> sx >> sy >> sz;
+            Scale(sx, sy, sz);
+        }
+        else if(command == "rotate"){
+            double angle;
+            Point a;
+            scene >> angle >> a.x >> a.y >> a.z;
+            Rotate(angle, a);
         }
         else if(command == "push"){
             PushMatrix();
