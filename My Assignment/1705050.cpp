@@ -47,8 +47,8 @@ struct Matrix{
     }
 
     void Print(ofstream &file){
-        for(int i=0;i<4;i++){
-            for(int j=0;j<4;j++){
+        for(int i=0;i<3;i++){
+            for(int j=0;j<3;j++){
                 file << fixed << setprecision(7) << data[i][j] << ' ';
             }
             file<<endl;
@@ -165,6 +165,9 @@ void Initiate(){
     P.data[3][2] = -1.0;
     P.data[2][3] = 2 * far * near / (near - far);
 
+    // make transformation matrix identity matrix
+    transformation.MakeIdentityMatrix();
+
 }
 
 
@@ -183,4 +186,43 @@ int main(){
 
 
     SceneInput(scene);
+    Initiate();
+
+    string command;
+
+    while(true){
+        scene >> command;
+        if(command == "triangle"){
+            Matrix triangle;
+            scene >> triangle.data[0][0] >> triangle.data[0][1] >> triangle.data[0][2];
+            scene >> triangle.data[1][0] >> triangle.data[1][1] >> triangle.data[1][2];
+            scene >> triangle.data[2][0] >> triangle.data[2][1] >> triangle.data[2][2];
+
+            triangle.data[0][3] = triangle.data[1][3] = triangle.data[2][3] = 1.0;
+            triangle.data[3][0] = triangle.data[3][1] = triangle.data[3][2] = 1.0;
+
+            // stage 1
+            triangle = Multiply(transformation, triangle);
+            triangle.Print(stage1);
+
+            // stage 2
+            triangle = Multiply(V, triangle);
+            triangle.Print(stage2);
+
+            // stage 2
+            triangle = Multiply(P, triangle);
+            triangle.Print(stage3);
+        }
+        else if(command == "push"){
+            PushMatrix();
+        }
+        else if(command == "pop"){
+            PopMatrix();
+        }
+
+        else if(command == "end"){
+            break;
+        }
+    }
+
 }
