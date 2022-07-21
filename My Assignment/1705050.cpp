@@ -164,8 +164,60 @@ void Scale(double sx, double sy, double sz){
     transformation = Multiply(transformation, scale);
 }
 
+Point RodriguesRotation(Point v, Point k, double angle ){
+    ///Ref: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    /// Vrot = v.cosA + (k x v) sinA + k(k.v)(1-cosA)
+
+    double sinA = sin(angle * PI / 180);
+    double cosA = cos(angle * PI / 180);
+
+    //first term
+    Point A(v.x*cosA, v.y*cosA, v.z*cosA);
+
+    //second term
+    Point B = VectorCross(k, v);
+    B.x = B.x*sinA;
+    B.y = B.y*sinA;
+    B.z = B.z*sinA;
+
+    //third term
+    double dot = (1-cosA) * (v.x*k.x + v.y*k.y + v.z*k.z);
+    Point C(k.x * dot, k.y * dot, k.z * dot);
+
+    Point Vrot(A.x+B.x+C.x, A.y+B.y+C.y, A.z+B.z+C.z);
+    return Vrot;
+}
+
 void Rotate(double angle, Point a){
+    a.Normalize();
+    Point c1 = RodriguesRotation(Point(1,0,0), a, angle);
+    Point c2 = RodriguesRotation(Point(0,1,0), a, angle);
+    Point c3 = RodriguesRotation(Point(0,0,1), a, angle);
+
+    Matrix rot;
+    rot.data[0][0] = c1.x;
+    rot.data[1][0] = c1.y;
+    rot.data[2][0] = c1.z;
+
+    rot.data[0][1] = c2.x;
+    rot.data[1][1] = c2.y;
+    rot.data[2][1] = c2.z;
+
+    rot.data[0][2] = c3.x;
+    rot.data[1][2] = c3.y;
+    rot.data[2][2] = c3.z;
+
+    rot.data[3][3] = 1;
+
+    transformation = Multiply(transformation, rot);
+
+}
+
+/// not needed now
+void Rotate1(double angle, Point a){
     /// Ref: https://www.youtube.com/watch?v=OhgiPknf2mc
+    // reverse translation is wrong in the video.
+
     a.Normalize();
 
     Matrix rot;
