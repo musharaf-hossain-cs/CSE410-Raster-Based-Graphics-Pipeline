@@ -581,7 +581,28 @@ void zBufferAlgo(){
         }
     }
 
-    image.save_image("output.bmp");
+    image.save_image("out.bmp");
+    ofstream bufferOut;
+    bufferOut.open("z-buffer.txt");
+
+    for(int i=0;i<zBuffer.size();i++){
+        for(int j=0; j<zBuffer[i].size(); j++){
+            if(zBuffer[i][j] < rear && zBuffer[i][j] >= front){
+                bufferOut << fixed <<setprecision(6) << zBuffer[i][j] << "\t";
+            }
+        }
+        bufferOut << endl;
+    }
+
+    bufferOut.close();
+
+    // free memory
+    for(int i=0; i<zBuffer.size(); i++){
+        zBuffer[i].clear();
+    }
+    zBuffer.clear();
+    image.clear();
+
 }
 
 void zBufferUtil(){
